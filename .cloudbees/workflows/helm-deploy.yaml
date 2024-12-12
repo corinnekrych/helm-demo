@@ -8,15 +8,36 @@ jobs:
     steps:
       - uses: cloudbees-io/checkout@v1
         name: checkout
-      - uses: cloudbees-io/configure-oci-credentials@v1
-        name: Set up Docker Hub registry
-        kind: deploy
+
+      - name: Login to AWS
+        uses: https://github.com/cloudbees-io/configure-aws-credentials@v1
         with:
-          registry: https://index.docker.io/v1/
-          username: corinnekrych
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - uses: cloudbees-io/kaniko/.cloudbees/testing
-        name: Push image to OCI registry
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.oidc_staging_iam_role }}
+          role-duration-seconds: "3600"
+
+      - id: ecrconfig
+        name: Configure container registry for staging ECR
+        uses: cloudbees-io/configure-ecr-credentials@v1
+
+      - name: docker build and publish
+        uses: cloudbees-io/kaniko@v1
         with:
-          destination: index.docker.io/corinnekrych/go-hello-world-docker:1.0.1-${{cloudbees.version}}
-          labels: app=cbp
+          destination: 020229604682.dkr.ecr.us-east-1.amazonaws.com/demos/helm-demo:${{ cloudbees.scm.sha }}
+          context: ${{ cloudbees.workspace }}
+          labels: maintainer=sdp-pod-3,email=engineering@cloudbees.com
+          registry-mirrors: 020229604682.dkr.ecr.us-east-1.amazonaws.com/docker-hub
+
+
+      # - uses: cloudbees-io/configure-oci-credentials@v1
+      #   name: Set up Docker Hub registry
+      #   kind: deploy
+      #   with:
+      #     registry: https://index.docker.io/v1/
+      #     username: corinnekrych
+      #     password: ${{ secrets.DOCKER_PASSWORD }}
+      # - uses: cloudbees-io/kaniko/.cloudbees/testing
+      #   name: Push image to OCI registry
+      #   with:
+      #     destination: index.docker.io/corinnekrych/go-hello-world-docker:1.0.1-${{cloudbees.version}}
+      #     labels: app=cbp
