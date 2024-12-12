@@ -1,0 +1,47 @@
+apiVersion: automation.cloudbees.io/v1alpha1
+kind: workflow
+name: My automation
+on:
+  workflow_dispatch:
+jobs:
+  deploy:
+    steps:
+      - uses: cloudbees-io/checkout@v1
+        name: checkout
+      - uses: cloudbees-io/configure-oci-credentials@v1
+        name: Set up Docker Hub registry
+        kind: deploy
+        with:
+          registry: https://index.docker.io/v1/
+          username: corinnekrych
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - uses: cloudbees-io/kaniko/.cloudbees/testing
+        name: Push image to OCI registry
+        with:
+          destination: index.docker.io/corinnekrych/go-hello-world-docker:1.0.1-${{cloudbees.version}}
+          labels: app=cbp
+      - uses: cloudbees-io/kaniko/.cloudbees/testing
+        name: Push image to OCI registry
+        with:
+          destination: index.docker.io/corinnekrych/boo:${{cloudbees.version}}
+          labels: app=cbp
+      - uses: cloudbees-io/kaniko/.cloudbees/testing
+        name: Push image to OCI registry
+        with:
+          destination: index.docker.io/corinnekrych/foo:${{cloudbees.version}}
+          labels: app=cbp          
+      - uses: cloudbees-io/kaniko/.cloudbees/testing
+        name: Push image to OCI registry
+        with:
+          destination: index.docker.io/corinnekrych/bar:${{cloudbees.version}}
+          labels: app=cbp  
+      - uses: cloudbees-io/kaniko/.cloudbees/testing
+        name: Push image to OCI registry
+        with:
+          destination: index.docker.io/corinnekrych/jas:${{cloudbees.version}}
+          labels: app=cbp    
+      - uses: cloudbees-io/kaniko/.cloudbees/testing
+        name: Push image to OCI registry
+        with:
+          destination: index.docker.io/corinnekrych/toto:${{cloudbees.version}}
+          labels: app=cbp                                
