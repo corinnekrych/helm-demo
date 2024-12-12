@@ -1,17 +1,30 @@
 apiVersion: automation.cloudbees.io/v1alpha1
 kind: workflow
-name: My automation
 on:
   workflow_dispatch:
 jobs:
-  deploy:
+  build:
+    #if: cloudbees.api.url == 'https://api.saas-preprod.beescloud.com' || cloudbees.api.url == 'https://api.cloudbees.io'
     permissions:
       scm-token-own: read
       id-token: write
     steps:
-      - uses: cloudbees-io/checkout@v1
-        name: checkout
-
+      - name: get source code
+        uses: cloudbees-io/checkout@v1
+      - name: Validate action
+        uses: docker://amazon/aws-cli:2.15.54
+        run: |
+          TESTING_SHA=$(cat .cloudbees/testing/action.yml | sha1sum)
+          ORIGINAL_SHA=$(sed -e 's|docker://public.ecr.aws/l7o7z1g8/actions/|docker://020229604682.dkr.ecr.us-east-1.amazonaws.com/actions/|g' < action.yml | sha1sum)
+          if [ "${TESTING_SHA}" != "${ORIGINAL_SHA}" ]; then
+            echo "Original action different from testing action"
+            exit 1
+          fi
+      - name: Run bats tests
+        uses: docker://bats/bats:v1.10.0
+        with:
+          entrypoint: /opt/bats/bin/bats
+          args: .
       - name: Login to AWS
         uses: https://github.com/cloudbees-io/configure-aws-credentials@v1
         with:
@@ -19,17 +32,32 @@ jobs:
           role-to-assume: ${{ vars.oidc_staging_iam_role }}
           role-duration-seconds: "3600"
 
-      - id: ecrconfig
-        name: Configure container registry for staging ECR
-        uses: cloudbees-io/configure-ecr-credentials@v1
+  # deploy:
+  #   permissions:
+  #     scm-token-own: read
+  #     id-token: write
+  #   steps:
+  #     - uses: cloudbees-io/checkout@v1
+  #       name: checkout
 
-      - name: docker build and publish
-        uses: cloudbees-io/kaniko@v1
-        with:
-          destination: 020229604682.dkr.ecr.us-east-1.amazonaws.com/demos/helm-demo:${{ cloudbees.scm.sha }}
-          context: ${{ cloudbees.workspace }}
-          labels: maintainer=sdp-pod-3,email=engineering@cloudbees.com
-          registry-mirrors: 020229604682.dkr.ecr.us-east-1.amazonaws.com/docker-hub
+  #     - name: Login to AWS
+  #       uses: https://github.com/cloudbees-io/configure-aws-credentials@v1
+  #       with:
+  #         aws-region: us-east-1
+  #         role-to-assume: ${{ vars.oidc_staging_iam_role }}
+  #         role-duration-seconds: "3600"
+
+      # - id: ecrconfig
+      #   name: Configure container registry for staging ECR
+      #   uses: cloudbees-io/configure-ecr-credentials@v1
+
+      # - name: docker build and publish
+      #   uses: cloudbees-io/kaniko@v1
+      #   with:
+      #     destination: 020229604682.dkr.ecr.us-east-1.amazonaws.com/demos/helm-demo:${{ cloudbees.scm.sha }}
+      #     context: ${{ cloudbees.workspace }}
+      #     labels: maintainer=sdp-pod-3,email=engineering@cloudbees.com
+      #     registry-mirrors: 020229604682.dkr.ecr.us-east-1.amazonaws.com/docker-hub
 
 
       # - uses: cloudbees-io/configure-oci-credentials@v1
